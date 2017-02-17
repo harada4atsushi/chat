@@ -20,7 +20,7 @@ import time
 import tensorflow.python.platform
 
 import numpy as np
-from six.moves import xrange  
+from six.moves import xrange
 import tensorflow as tf
 
 import data_utils
@@ -39,7 +39,7 @@ tf.app.flags.DEFINE_integer("size", 256, "Size of each model layer.")
 tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
 tf.app.flags.DEFINE_integer("in_vocab_size", 500, "input vocabulary size.")
 tf.app.flags.DEFINE_integer("out_vocab_size", 500, "output vocabulary size.")
-tf.app.flags.DEFINE_string("data_dir", "datas", "Data directory")       
+tf.app.flags.DEFINE_string("data_dir", "datas", "Data directory")
 tf.app.flags.DEFINE_string("train_dir", "datas", "Training directory.")
 tf.app.flags.DEFINE_integer("max_train_data_size", 0,
                             "Limit on the size of training data (0: no limit).")
@@ -60,88 +60,88 @@ def read_data(source_path, target_path, max_size=None):
   source_file = open(source_path,"r")
   target_file = open(target_path,"r")
 
-  source, target = source_file.readline(), target_file.readline()     
+  source, target = source_file.readline(), target_file.readline()
   counter = 0
   while source and target and (not max_size or counter < max_size):
     counter += 1
-    if counter % 50 == 0:                         
+    if counter % 50 == 0:
       print("  reading data line %d" % counter)
       sys.stdout.flush()
 
-    source_ids = [int(x) for x in source.split()]   
-    target_ids = [int(x) for x in target.split()]    
-    target_ids.append(data_utils.EOS_ID)             
-    for bucket_id, (source_size, target_size) in enumerate(_buckets):        
-      if len(source_ids) < source_size and len(target_ids) < target_size:    
-        data_set[bucket_id].append([source_ids, target_ids])                 
+    source_ids = [int(x) for x in source.split()]
+    target_ids = [int(x) for x in target.split()]
+    target_ids.append(data_utils.EOS_ID)
+    for bucket_id, (source_size, target_size) in enumerate(_buckets):
+      if len(source_ids) < source_size and len(target_ids) < target_size:
+        data_set[bucket_id].append([source_ids, target_ids])
         break
     source, target = source_file.readline(), target_file.readline()
   return data_set
 
 def create_model(session, forward_only):
   model = seq2seq_model.Seq2SeqModel(
-      FLAGS.in_vocab_size, FLAGS.out_vocab_size, _buckets,                           
-      FLAGS.size, FLAGS.num_layers, FLAGS.max_gradient_norm, FLAGS.batch_size,      
-      FLAGS.learning_rate, FLAGS.learning_rate_decay_factor,                       
-      forward_only=forward_only)                                                    
-  
-  ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)                             
-  if ckpt and gfile.Exists(ckpt.model_checkpoint_path):                              
-    print("Reading model parameters from %s" % ckpt.model_checkpoint_path)          
-    model.saver.restore(session, ckpt.model_checkpoint_path)                        
+      FLAGS.in_vocab_size, FLAGS.out_vocab_size, _buckets,
+      FLAGS.size, FLAGS.num_layers, FLAGS.max_gradient_norm, FLAGS.batch_size,
+      FLAGS.learning_rate, FLAGS.learning_rate_decay_factor,
+      forward_only=forward_only)
+
+  ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
+  if ckpt and gfile.Exists(ckpt.model_checkpoint_path):
+    print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
+    model.saver.restore(session, ckpt.model_checkpoint_path)
   else:
     print("Created model with fresh parameters.")
-    session.run(tf.initialize_all_variables())                                      
-  return model                                                                      
+    session.run(tf.initialize_all_variables())
+  return model
 
 
 def train():
-                                                                                    
-  print("Preparing data in %s" % FLAGS.data_dir)                                
-  in_train, out_train, in_dev, out_dev, _, _ = data_utils.prepare_wmt_data(           
-      FLAGS.data_dir, FLAGS.in_vocab_size, FLAGS.out_vocab_size)                     
-                                                  
+
+  print("Preparing data in %s" % FLAGS.data_dir)
+  in_train, out_train, in_dev, out_dev, _, _ = data_utils.prepare_wmt_data(
+      FLAGS.data_dir, FLAGS.in_vocab_size, FLAGS.out_vocab_size)
+
 
   with tf.Session() as sess:
-    
 
-    print("Creating %d layers of %d units." % (FLAGS.num_layers, FLAGS.size))       
-    model = create_model(sess, False)                                               
 
-    print ("Reading development and training data (limit: %d)."     
-           % FLAGS.max_train_data_size)                                             
-    dev_set = read_data(in_dev, out_dev)                                             
-    train_set = read_data(in_train, out_train, FLAGS.max_train_data_size)            
-                                                                                    
-    train_bucket_sizes = [len(train_set[b]) for b in xrange(len(_buckets))]         
-    train_total_size = float(sum(train_bucket_sizes))                               
+    print("Creating %d layers of %d units." % (FLAGS.num_layers, FLAGS.size))
+    model = create_model(sess, False)
 
- 
-    train_buckets_scale = [sum(train_bucket_sizes[:i + 1]) / train_total_size     
-                           for i in xrange(len(train_bucket_sizes))]              
+    print ("Reading development and training data (limit: %d)."
+           % FLAGS.max_train_data_size)
+    dev_set = read_data(in_dev, out_dev)
+    train_set = read_data(in_train, out_train, FLAGS.max_train_data_size)
+
+    train_bucket_sizes = [len(train_set[b]) for b in xrange(len(_buckets))]
+    train_total_size = float(sum(train_bucket_sizes))
+
+
+    train_buckets_scale = [sum(train_bucket_sizes[:i + 1]) / train_total_size
+                           for i in xrange(len(train_bucket_sizes))]
 
     step_time, loss = 0.0, 0.0
     current_step = 0
     previous_losses = []
     while True:
-     
-      random_number_01 = np.random.random_sample()                     
-      bucket_id = min([i for i in xrange(len(train_buckets_scale))      
+
+      random_number_01 = np.random.random_sample()
+      bucket_id = min([i for i in xrange(len(train_buckets_scale))
                        if train_buckets_scale[i] > random_number_01])
 
       start_time = time.time()
-      encoder_inputs, decoder_inputs, target_weights = model.get_batch(   
-          train_set, bucket_id)                                           
-                                                                          
-      _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs, 
-                                   target_weights, bucket_id, False)      
+      encoder_inputs, decoder_inputs, target_weights = model.get_batch(
+          train_set, bucket_id)
+
+      _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
+                                   target_weights, bucket_id, False)
       step_time += (time.time() - start_time) / FLAGS.steps_per_checkpoint
       loss += step_loss / FLAGS.steps_per_checkpoint
       current_step += 1
 
-      
+
       if current_step % FLAGS.steps_per_checkpoint == 0:
-     
+
         perplexity = math.exp(loss) if loss < 300 else float('inf')
         print ("global step %d learning rate %.4f step-time %.2f perplexity "
                "%.2f" % (model.global_step.eval(), model.learning_rate.eval(),
@@ -165,62 +165,93 @@ def train():
           print("  eval: bucket %d perplexity %.2f" % (bucket_id, eval_ppx))
         sys.stdout.flush()
 
+        instant_decode(sess, model, 'その 通り よ 。')
+
 
 def decode():
   with tf.Session() as sess:
     print ("Hello!!")
-    model = create_model(sess, True)                         
-    model.batch_size = 1  
-    
+    model = create_model(sess, True)
+    model.batch_size = 1
+
     in_vocab_path = os.path.join(FLAGS.data_dir,
-                                 "vocab_in.txt")     
+                                 "vocab_in.txt")
     out_vocab_path = os.path.join(FLAGS.data_dir,
                                  "vocab_out.txt" )
-                                                                        
-    in_vocab, _ = data_utils.initialize_vocabulary(in_vocab_path)        
-    _, rev_out_vocab = data_utils.initialize_vocabulary(out_vocab_path)    
 
-    
+    in_vocab, _ = data_utils.initialize_vocabulary(in_vocab_path)
+    _, rev_out_vocab = data_utils.initialize_vocabulary(out_vocab_path)
+
+    # instant_decode(sess, model, 'その 通り よ 。')
+
     sys.stdout.write("> ")
     sys.stdout.flush()
-    sentence = sys.stdin.readline()    
+    sentence = sys.stdin.readline()
     while sentence:
 
-      token_ids = data_utils.sentence_to_token_ids(sentence, in_vocab)   
-      
+      token_ids = data_utils.sentence_to_token_ids(sentence, in_vocab)
+
       bucket_id = min([b for b in xrange(len(_buckets))
-                       if _buckets[b][0] > len(token_ids)])               
+                       if _buckets[b][0] > len(token_ids)])
 
       encoder_inputs, decoder_inputs, target_weights = model.get_batch(
           {bucket_id: [(token_ids, [])]}, bucket_id)
-    
-      _, _, output_logits = model.step(sess, encoder_inputs, decoder_inputs,      
+
+      _, _, output_logits = model.step(sess, encoder_inputs, decoder_inputs,
                                        target_weights, bucket_id, True)
 
-      outputs = [int(np.argmax(logit, axis=1)) for logit in output_logits]       
+      outputs = [int(np.argmax(logit, axis=1)) for logit in output_logits]
 
       if data_utils.EOS_ID in outputs:
-        outputs = outputs[:outputs.index(data_utils.EOS_ID)]                      
+        outputs = outputs[:outputs.index(data_utils.EOS_ID)]
 
       print(" ".join([rev_out_vocab[output] for output in outputs]))
       print("> ", end="")
       sys.stdout.flush()
-      sentence = sys.stdin.readline()                                             
-                                                                                  
+      sentence = sys.stdin.readline()
+
+def instant_decode(sess, model, sentence):
+  in_vocab_path = os.path.join(FLAGS.data_dir, "vocab_in.txt")
+  out_vocab_path = os.path.join(FLAGS.data_dir, "vocab_out.txt" )
+  in_vocab, _ = data_utils.initialize_vocabulary(in_vocab_path)
+  _, rev_out_vocab = data_utils.initialize_vocabulary(out_vocab_path)
+
+  token_ids = data_utils.sentence_to_token_ids(sentence, in_vocab)
+  bucket_id = min([b for b in xrange(len(_buckets))
+                   if _buckets[b][0] > len(token_ids)])
+
+  encoder_inputs, decoder_inputs, target_weights = model.get_batch(
+      {bucket_id: [(token_ids, [])]}, bucket_id)
+
+  _, _, output_logits = model.step(sess, encoder_inputs, decoder_inputs,
+                                   target_weights, bucket_id, True)
+  # for logit in output_logits:
+  #   print(np.unique(np.argmax(logit, axis=1)))
+  # outputs = [int(np.unique(np.argmax(logit, axis=1))) for logit in output_logits]
+
+  out_batch_size = output_logits[0].shape[0]
+  rand_idx = np.random.randint(0, out_batch_size)
+  outputs = [int(np.unique(np.argmax(logit[rand_idx]))) for logit in output_logits]
+
+  if data_utils.EOS_ID in outputs:
+    outputs = outputs[:outputs.index(data_utils.EOS_ID)]
+
+  print('output: ' + (" ".join([rev_out_vocab[output] for output in outputs])))
+
 
 def self_test():
-  
+
   with tf.Session() as sess:
     print("Self-test for neural translation model.")
-    
+
     model = seq2seq_model.Seq2SeqModel(10, 10, [(3, 3), (6, 6)], 32, 2,
                                        5.0, 32, 0.3, 0.99, num_samples=8)
     sess.run(tf.initialize_all_variables())
 
-    
+
     data_set = ([([1, 1], [2, 2]), ([3, 3], [4]), ([5], [6])],
                 [([1, 1, 1, 1, 1], [2, 2, 2, 2, 2]), ([3, 3, 3], [5, 6])])
-    for _ in xrange(5):  
+    for _ in xrange(5):
       bucket_id = random.choice([0, 1])
       encoder_inputs, decoder_inputs, target_weights = model.get_batch(
           data_set, bucket_id)
