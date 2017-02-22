@@ -165,8 +165,7 @@ def train():
           print("  eval: bucket %d perplexity %.2f" % (bucket_id, eval_ppx))
         sys.stdout.flush()
 
-        instant_decode(sess, model, 'その 通り よ 。')
-
+        instant_decode(sess, model, bucket_id, encoder_inputs, decoder_inputs, target_weights)
 
 def decode():
   with tf.Session() as sess:
@@ -210,18 +209,17 @@ def decode():
       sys.stdout.flush()
       sentence = sys.stdin.readline()
 
-def instant_decode(sess, model, sentence):
+def instant_decode(sess, model, bucket_id, encoder_inputs, decoder_inputs, target_weights):
   in_vocab_path = os.path.join(FLAGS.data_dir, "vocab_in.txt")
   out_vocab_path = os.path.join(FLAGS.data_dir, "vocab_out.txt" )
   in_vocab, _ = data_utils.initialize_vocabulary(in_vocab_path)
   _, rev_out_vocab = data_utils.initialize_vocabulary(out_vocab_path)
 
-  token_ids = data_utils.sentence_to_token_ids(sentence, in_vocab)
-  bucket_id = min([b for b in xrange(len(_buckets))
-                   if _buckets[b][0] > len(token_ids)])
-
-  encoder_inputs, decoder_inputs, target_weights = model.get_batch(
-      {bucket_id: [(token_ids, [])]}, bucket_id)
+  # token_ids = data_utils.sentence_to_token_ids(sentence, in_vocab)
+  # bucket_id = min([b for b in xrange(len(_buckets))
+  #                  if _buckets[b][0] > len(token_ids)])
+  # encoder_inputs, decoder_inputs, target_weights = model.get_batch(
+  #     {bucket_id: [(token_ids, [])]}, bucket_id)
 
   _, _, output_logits = model.step(sess, encoder_inputs, decoder_inputs,
                                    target_weights, bucket_id, True)
@@ -232,11 +230,15 @@ def instant_decode(sess, model, sentence):
   out_batch_size = output_logits[0].shape[0]
   rand_idx = np.random.randint(0, out_batch_size)
   outputs = [int(np.unique(np.argmax(logit[rand_idx]))) for logit in output_logits]
+  inputs = [int(x[rand_idx]) for x in decoder_inputs]
 
+  if data_utils.EOS_ID in inputs:
+    inputs = inputs[:inputs.index(data_utils.EOS_ID)]
   if data_utils.EOS_ID in outputs:
     outputs = outputs[:outputs.index(data_utils.EOS_ID)]
-
-  print('output: ' + (" ".join([rev_out_vocab[output] for output in outputs])))
+  # print('trg: ' + (" ".join([tf.compat.as_str(rev_out_vocab[input]) for input in inputs[1:]])))
+  print('trg: ' + (" ".join([rev_out_vocab[input] for input in inputs[1:]])))
+  print('hyp: ' + (" ".join([rev_out_vocab[output] for output in outputs])))
 
 
 def self_test():
